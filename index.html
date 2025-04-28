@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Калькулятор БЖВ</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            font-family: sans-serif;
+            padding: 10px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        .tab {
+            display: none;
+        }
+        .tab.active {
+            display: block;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .tabs button {
+            flex: 1;
+            margin: 2px;
+        }
+        .product-card {
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid var(--tg-theme-hint-color);
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="tabs">
+        <button onclick="showTab('search')">Пошук</button>
+        <button onclick="showTab('history')">День</button>
+        <button onclick="showTab('add')">Додати продукт</button>
+    </div>
+
+    <div id="search" class="tab active">
+        <h2>Пошук продукту</h2>
+        <input type="text" id="barcodeInput" placeholder="Введіть штрихкод">
+        <input type="number" id="gramsInput" placeholder="Грами">
+        <button onclick="findProduct()">Знайти і додати</button>
+        <div id="searchResult"></div>
+    </div>
+
+    <div id="history" class="tab">
+        <h2>Список дня</h2>
+        <div id="dayHistory"></div>
+        <button onclick="clearDay()">Очистити день</button>
+    </div>
+
+    <div id="add" class="tab">
+        <h2>Додати новий продукт</h2>
+        <input type="text" id="newBarcode" placeholder="Штрихкод">
+        <input type="text" id="newName" placeholder="Назва продукту">
+        <input type="number" id="newProtein" placeholder="Білки (на 100г)">
+        <input type="number" id="newFat" placeholder="Жири (на 100г)">
+        <input type="number" id="newCarbs" placeholder="Вуглеводи (на 100г)">
+        <input type="number" id="newCalories" placeholder="Калорії (на 100г)">
+        <button onclick="addNewProduct()">Зберегти продукт</button>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Локальна база продуктів
+        let products = JSON.parse(localStorage.getItem('products')) || {
+            "1234567890123": {name: "Молоко", protein: 3, fat: 3.2, carbs: 5, calories: 64},
+            "9876543210987": {name: "Куряче філе", protein: 23, fat: 2, carbs: 0, calories: 110},
+            "5555555555555": {name: "Яблуко", protein: 0.3, fat: 0.2, carbs: 14, calories: 52}
+        };
+
+        // Локальна історія дня
+        let history = JSON.parse(localStorage.getItem('history')) || {};
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            if (tabId === 'history') loadHistory();
+        }
+
+        function findProduct() {
+            const barcode = document.getElementById('barcodeInput').value;
+            const grams = parseFloat(document.getElementById('gramsInput').value);
+            const product = products[barcode];
+            const resultDiv = document.getElementById('searchResult');
+
+            if (!product) {
+                resultDiv.innerHTML = "<p>Продукт не знайдено. Додайте його у вкладці 'Додати продукт'.</p>";
+                return;
+            }
+
+            const multiplier = grams / 100;
+            const p = (product.protein * multiplier).toFixed(2);
+            const f = (product.fat * multiplier).toFixed(2);
+            const c = (product.carbs * multiplier).toFixed(2);
+            const kcal = (product.calories * multiplier).toFixed(2);
+
+            resultDiv.innerHTML = `
+                <div class="product-card">
+                    <strong>${product.name}</strong><br>
+                    Б: ${p}г | Ж: ${f}г | В: ${c}г | ${kcal} ккал
+                </div>
+            `;
+
+            addToHistory(product.name, p, f, c, kcal);
+        }
+
+        function addToHistory(name, protein, fat, carbs, calories) {
+            const today = new Date().toISOString().split('T')[0];
+            if (!history[today]) history[today] = [];
+            history[today].push({name, protein, fat, carbs, calories});
+            localStorage.setItem('history', JSON.stringify(history));
+        }
+
+        function loadHistory() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayHistory = history[today] || [];
+            const container = document.getElementById('dayHistory');
+            container.innerHTML = "";
+
+            let totalP = 0, totalF = 0, totalC = 0, totalKcal = 0;
+
+            todayHistory.forEach(item => {
+                container.innerHTML += `
+                    <div class="product-card">
+                        <strong>${item.name}</strong><br>
+                        Б: ${item.protein}г | Ж: ${item.fat}г | В: ${item.carbs}г | ${item.calories} ккал
+                    </div>
+                `;
+                totalP += parseFloat(item.protein);
+                totalF += parseFloat(item.fat);
+                totalC += parseFloat(item.carbs);
+                totalKcal += parseFloat(item.calories);
+            });
+
+            if (todayHistory.length) {
+                container.innerHTML += `
+                    <div class="product-card">
+                        <strong>Сума за день:</strong><br>
+                        Б: ${totalP.toFixed(2)}г | Ж: ${totalF.toFixed(2)}г | В: ${totalC.toFixed(2)}г | ${totalKcal.toFixed(2)} ккал
+                    </div>
+                `;
+            } else {
+                container.innerHTML = "<p>Список за сьогодні порожній.</p>";
+            }
+        }
+
+        function clearDay() {
+            const today = new Date().toISOString().split('T')[0];
+            delete history[today];
+            localStorage.setItem('history', JSON.stringify(history));
+            loadHistory();
+        }
+
+        function addNewProduct() {
+            const barcode = document.getElementById('newBarcode').value;
+            const name = document.getElementById('newName').value;
+            const protein = parseFloat(document.getElementById('newProtein').value);
+            const fat = parseFloat(document.getElementById('newFat').value);
+            const carbs = parseFloat(document.getElementById('newCarbs').value);
+            const calories = parseFloat(document.getElementById('newCalories').value);
+
+            if (!barcode || !name) {
+                alert("Введіть всі обов'язкові дані!");
+                return;
+            }
+
+            products[barcode] = {name, protein, fat, carbs, calories};
+            localStorage.setItem('products', JSON.stringify(products));
+            alert("Продукт додано!");
+            document.getElementById('newBarcode').value = "";
+            document.getElementById('newName').value = "";
+            document.getElementById('newProtein').value = "";
+            document.getElementById('newFat').value = "";
+            document.getElementById('newCarbs').value = "";
+            document.getElementById('newCalories').value = "";
+        }
+    </script>
+
+</body>
+</html>
