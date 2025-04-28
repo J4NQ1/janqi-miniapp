@@ -5,66 +5,110 @@
     <title>Калькулятор БЖВ</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        :root {
+            --main-bg: var(--tg-theme-bg-color, #ffffff);
+            --main-text: var(--tg-theme-text-color, #000000);
+            --hint-text: var(--tg-theme-hint-color, #888888);
+            --accent-bg: var(--tg-theme-button-color, #2AABEE);
+            --accent-text: var(--tg-theme-button-text-color, #ffffff);
+            --card-bg: rgba(0, 0, 0, 0.05);
+        }
         body {
-            background: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
-            font-family: sans-serif;
-            padding: 10px;
+            background-color: var(--main-bg);
+            color: var(--main-text);
+            font-family: 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 16px;
+        }
+        h2 {
+            margin-top: 0;
+            font-size: 22px;
         }
         input, button {
-            padding: 10px;
-            margin: 5px 0;
             width: 100%;
+            padding: 12px;
+            margin-top: 8px;
             font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
+            border-radius: 12px;
+            border: 1px solid var(--hint-text);
+            background-color: var(--main-bg);
+            color: var(--main-text);
+            box-sizing: border-box;
+        }
+        button {
+            background-color: var(--accent-bg);
+            color: var(--accent-text);
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background-color: #219ed6;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 16px;
+            gap: 8px;
+        }
+        .tabs button {
+            flex: 1;
+            background-color: var(--card-bg);
+            color: var(--main-text);
+            border: none;
+        }
+        .tabs button.active {
+            background-color: var(--accent-bg);
+            color: var(--accent-text);
         }
         .tab {
             display: none;
+            animation: fade 0.3s ease-in;
         }
         .tab.active {
             display: block;
         }
-        .tabs {
-            display: flex;
-            margin-bottom: 10px;
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 12px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
-        .tabs button {
-            flex: 1;
-            margin: 2px;
+        @keyframes fade {
+            from {opacity: 0;}
+            to {opacity: 1;}
         }
-        .product-card {
-            padding: 10px;
-            margin-top: 10px;
-            border: 1px solid var(--tg-theme-hint-color);
-            border-radius: 8px;
+        .sum-card {
+            background: var(--accent-bg);
+            color: var(--accent-text);
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
     <div class="tabs">
-        <button onclick="showTab('search')">Пошук</button>
-        <button onclick="showTab('history')">День</button>
-        <button onclick="showTab('add')">Додати продукт</button>
+        <button id="tabSearchBtn" onclick="showTab('search')">Пошук</button>
+        <button id="tabHistoryBtn" onclick="showTab('history')">День</button>
+        <button id="tabAddBtn" onclick="showTab('add')">Додати</button>
     </div>
 
     <div id="search" class="tab active">
         <h2>Пошук продукту</h2>
         <input type="text" id="barcodeInput" placeholder="Введіть штрихкод">
-        <input type="number" id="gramsInput" placeholder="Грами">
+        <input type="number" id="gramsInput" placeholder="Кількість грамів">
         <button onclick="findProduct()">Знайти і додати</button>
         <div id="searchResult"></div>
     </div>
 
     <div id="history" class="tab">
-        <h2>Список дня</h2>
+        <h2>Список за день</h2>
         <div id="dayHistory"></div>
         <button onclick="clearDay()">Очистити день</button>
     </div>
 
     <div id="add" class="tab">
-        <h2>Додати новий продукт</h2>
+        <h2>Новий продукт</h2>
         <input type="text" id="newBarcode" placeholder="Штрихкод">
         <input type="text" id="newName" placeholder="Назва продукту">
         <input type="number" id="newProtein" placeholder="Білки (на 100г)">
@@ -75,33 +119,42 @@
     </div>
 
     <script>
-        let tg = window.Telegram.WebApp;
+        const tg = window.Telegram.WebApp;
+        tg.ready();
         tg.expand();
 
-        // Локальна база продуктів
         let products = JSON.parse(localStorage.getItem('products')) || {
             "1234567890123": {name: "Молоко", protein: 3, fat: 3.2, carbs: 5, calories: 64},
             "9876543210987": {name: "Куряче філе", protein: 23, fat: 2, carbs: 0, calories: 110},
             "5555555555555": {name: "Яблуко", protein: 0.3, fat: 0.2, carbs: 14, calories: 52}
         };
-
-        // Локальна історія дня
         let history = JSON.parse(localStorage.getItem('history')) || {};
 
         function showTab(tabId) {
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tabs button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
+            document.getElementById('tab' + capitalize(tabId) + 'Btn').classList.add('active');
             if (tabId === 'history') loadHistory();
         }
 
+        function capitalize(s) {
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        }
+
         function findProduct() {
-            const barcode = document.getElementById('barcodeInput').value;
+            const barcode = document.getElementById('barcodeInput').value.trim();
             const grams = parseFloat(document.getElementById('gramsInput').value);
             const product = products[barcode];
             const resultDiv = document.getElementById('searchResult');
 
+            if (!barcode || isNaN(grams) || grams <= 0) {
+                resultDiv.innerHTML = "<p>Введіть коректний штрихкод і грами.</p>";
+                return;
+            }
+
             if (!product) {
-                resultDiv.innerHTML = "<p>Продукт не знайдено. Додайте його у вкладці 'Додати продукт'.</p>";
+                resultDiv.innerHTML = "<p>Продукт не знайдено. Додайте його у вкладці 'Додати'.</p>";
                 return;
             }
 
@@ -112,7 +165,7 @@
             const kcal = (product.calories * multiplier).toFixed(2);
 
             resultDiv.innerHTML = `
-                <div class="product-card">
+                <div class="card">
                     <strong>${product.name}</strong><br>
                     Б: ${p}г | Ж: ${f}г | В: ${c}г | ${kcal} ккал
                 </div>
@@ -138,7 +191,7 @@
 
             todayHistory.forEach(item => {
                 container.innerHTML += `
-                    <div class="product-card">
+                    <div class="card">
                         <strong>${item.name}</strong><br>
                         Б: ${item.protein}г | Ж: ${item.fat}г | В: ${item.carbs}г | ${item.calories} ккал
                     </div>
@@ -151,13 +204,13 @@
 
             if (todayHistory.length) {
                 container.innerHTML += `
-                    <div class="product-card">
-                        <strong>Сума за день:</strong><br>
+                    <div class="card sum-card">
+                        Сума:<br>
                         Б: ${totalP.toFixed(2)}г | Ж: ${totalF.toFixed(2)}г | В: ${totalC.toFixed(2)}г | ${totalKcal.toFixed(2)} ккал
                     </div>
                 `;
             } else {
-                container.innerHTML = "<p>Список за сьогодні порожній.</p>";
+                container.innerHTML = "<p>Ще нічого не додано.</p>";
             }
         }
 
@@ -169,21 +222,22 @@
         }
 
         function addNewProduct() {
-            const barcode = document.getElementById('newBarcode').value;
-            const name = document.getElementById('newName').value;
+            const barcode = document.getElementById('newBarcode').value.trim();
+            const name = document.getElementById('newName').value.trim();
             const protein = parseFloat(document.getElementById('newProtein').value);
             const fat = parseFloat(document.getElementById('newFat').value);
             const carbs = parseFloat(document.getElementById('newCarbs').value);
             const calories = parseFloat(document.getElementById('newCalories').value);
 
-            if (!barcode || !name) {
-                alert("Введіть всі обов'язкові дані!");
+            if (!barcode || !name || isNaN(protein) || isNaN(fat) || isNaN(carbs) || isNaN(calories)) {
+                alert("Заповніть всі поля правильно!");
                 return;
             }
 
             products[barcode] = {name, protein, fat, carbs, calories};
             localStorage.setItem('products', JSON.stringify(products));
             alert("Продукт додано!");
+
             document.getElementById('newBarcode').value = "";
             document.getElementById('newName').value = "";
             document.getElementById('newProtein').value = "";
