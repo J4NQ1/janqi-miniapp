@@ -4,35 +4,264 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>НАЖЕР(ЛА)</title>
-  <link rel="stylesheet" href="styles/style.css">
-  <script src="https://unpkg.com/html5-qrcode" defer></script>
-  <script src="scripts/app.js" defer></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      color: #00ffc3;
+    }
+    .profile {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .profile input {
+      width: 70px;
+      background: #1e1e1e;
+      color: #e0e0e0;
+      border: 1px solid #333;
+      padding: 5px;
+      margin: 5px;
+      border-radius: 5px;
+      text-align: center;
+    }
+    .progress-bar {
+      width: 90%;
+      background-color: #333;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      position: relative;
+      height: 30px;
+    }
+    .progress {
+      background: linear-gradient(to right, #00ffc3, #00b894);
+      height: 100%;
+      width: 0%;
+      text-align: center;
+      line-height: 30px;
+      color: #000;
+      font-weight: bold;
+    }
+    .stats, .steps, .food-log, .buttons, .footer {
+      width: 90%;
+      margin-bottom: 20px;
+    }
+    .stats div, .steps div {
+      margin-bottom: 10px;
+    }
+    .buttons button {
+      width: 48%;
+      margin: 1%;
+      padding: 10px;
+      border: none;
+      background-color: #00ffc3;
+      color: #121212;
+      font-weight: bold;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .buttons button:hover {
+      background-color: #00e0aa;
+    }
+    .footer img {
+      width: 150px;
+      opacity: 0.6;
+    }
+    .form-section {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .form-section input {
+      width: 90%;
+      padding: 8px;
+      margin: 5px 0;
+      background: #333;
+      color: #e0e0e0;
+      border: 1px solid #444;
+      border-radius: 5px;
+    }
+    .food-log ul {
+      list-style: none;
+      padding: 0;
+    }
+    .food-log li {
+      background: #1e1e1e;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 5px;
+      position: relative;
+    }
+    .food-log li button {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      background: red;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+    }
+    label {
+      font-size: 14px;
+      margin-top: 10px;
+      display: block;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>НАЖЕР(ЛА) ВСЬОГО</h1>
 
-    <div class="progress-bar">
-      <div id="progress" class="progress-fill"></div>
-    </div>
+  <h1>НАЖЕР(ЛА)</h1>
 
-    <div class="kbjv">
-      <h2>КБЖВ ЗА ДЕНЬ:</h2>
-      <p>Калорії: <span id="calories">0</span></p>
-      <p>Білок: <span id="protein">0</span> г</p>
-      <p>Жири: <span id="fats">0</span> г</p>
-      <p>Вуглеводи: <span id="carbs">0</span> г</p>
-    </div>
-
-    <div class="buttons">
-      <button onclick="openAddProduct()">Додати</button>
-      <button onclick="showWeekStats()">За тиждень</button>
-      <button onclick="showDayStats()">По дням</button>
-      <button onclick="openScanner()">Сканер</button>
-      <button class="plus-button" onclick="openAddProduct()">+</button>
-    </div>
-
-    <div id="scanner" class="hidden"></div>
+  <div class="profile">
+    <label>Ріст (см): <input type="number" id="height" value="170"></label>
+    <label>Вага (кг): <input type="number" id="weight" value="60"></label>
+    <label>Норма калорій: <input type="number" id="calorieGoal" value="2500"></label>
+    <div id="waterGoal">Норма води: 2.4 л</div>
+    <div id="currentDate"></div>
   </div>
+
+  <div class="progress-bar">
+    <div class="progress" id="progress">0%</div>
+  </div>
+
+  <div class="stats">
+    <div>Калорії: <span id="calories">0</span></div>
+    <div>Білки: <span id="protein">0</span> г</div>
+    <div>Жири: <span id="fat">0</span> г</div>
+    <div>Вуглеводи: <span id="carbs">0</span> г</div>
+  </div>
+
+  <div class="steps">
+    <div>Кроки за день: <input type="number" id="steps" placeholder="0" oninput="calculateBurnedCalories()"></div>
+    <div>Спалено калорій: <span id="burnedCalories">0</span> ккал</div>
+    <div>Тренування: <input type="checkbox" id="training"> Було</div>
+  </div>
+
+  <div class="form-section">
+    <h3>Додати продукт</h3>
+    <input type="text" id="productName" placeholder="Назва продукту">
+    <input type="number" id="productCalories" placeholder="Калорії на 100 г">
+    <input type="number" id="productProtein" placeholder="Білки на 100 г">
+    <input type="number" id="productFat" placeholder="Жири на 100 г">
+    <input type="number" id="productCarbs" placeholder="Вуглеводи на 100 г">
+    <input type="number" id="productBarcode" placeholder="Штрихкод (необов'язково)">
+    <input type="number" id="productWeight" placeholder="Грами">
+    <button onclick="addProduct()">Додати продукт</button>
+  </div>
+
+  <div class="food-log">
+    <h3>Прийоми їжі</h3>
+    <ul id="foodList"></ul>
+  </div>
+
+  <div class="buttons">
+    <button onclick="clearData()">Очистити все</button>
+  </div>
+
+  <div class="footer">
+    <img src="https://placekitten.com/200/200" alt="Котик">
+  </div>
+
+<script>
+  let totalCalories = 0;
+  let totalProtein = 0;
+  let totalFat = 0;
+  let totalCarbs = 0;
+
+  function updateProgress() {
+    const goal = parseInt(document.getElementById('calorieGoal').value);
+    const percent = Math.min((totalCalories / goal) * 100, 150);
+    const progress = document.getElementById('progress');
+    progress.style.width = percent + '%';
+    progress.innerText = Math.floor(percent) + '%';
+
+    if (totalCalories > goal) {
+      alert('Хвате жерти 🤪');
+    }
+  }
+
+  function addProduct() {
+    const name = document.getElementById('productName').value || "Продукт";
+    const cal = +document.getElementById('productCalories').value || 0;
+    const prot = +document.getElementById('productProtein').value || 0;
+    const fat = +document.getElementById('productFat').value || 0;
+    const carb = +document.getElementById('productCarbs').value || 0;
+    const weight = +document.getElementById('productWeight').value || 100;
+
+    const factor = weight / 100;
+    totalCalories += cal * factor;
+    totalProtein += prot * factor;
+    totalFat += fat * factor;
+    totalCarbs += carb * factor;
+
+    document.getElementById('calories').innerText = Math.round(totalCalories);
+    document.getElementById('protein').innerText = Math.round(totalProtein);
+    document.getElementById('fat').innerText = Math.round(totalFat);
+    document.getElementById('carbs').innerText = Math.round(totalCarbs);
+
+    const li = document.createElement('li');
+    li.innerHTML = `${name} (${weight}г) - ${Math.round(cal * factor)} ккал <button onclick="deleteProduct(this)">×</button>`;
+    document.getElementById('foodList').appendChild(li);
+
+    updateProgress();
+  }
+
+  function deleteProduct(btn) {
+    const li = btn.parentNode;
+    li.remove();
+  }
+
+  function calculateBurnedCalories() {
+    const steps = +document.getElementById('steps').value || 0;
+    const burned = Math.round(steps * 0.04);
+    document.getElementById('burnedCalories').innerText = burned;
+  }
+
+  function clearData() {
+    totalCalories = 0;
+    totalProtein = 0;
+    totalFat = 0;
+    totalCarbs = 0;
+    document.getElementById('calories').innerText = 0;
+    document.getElementById('protein').innerText = 0;
+    document.getElementById('fat').innerText = 0;
+    document.getElementById('carbs').innerText = 0;
+    document.getElementById('foodList').innerHTML = '';
+    updateProgress();
+  }
+
+  function updateWaterGoal() {
+    const weight = document.getElementById('weight').value;
+    const water = (weight * 40) / 1000;
+    document.getElementById('waterGoal').innerText = `Норма води: ${water.toFixed(1)} л`;
+  }
+
+  document.getElementById('weight').addEventListener('input', updateWaterGoal);
+
+  function setDate() {
+    const date = new Date();
+    document.getElementById('currentDate').innerText = date.toLocaleDateString();
+  }
+
+  setDate();
+  updateWaterGoal();
+  updateProgress();
+</script>
+
 </body>
 </html>
